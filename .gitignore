@@ -1,0 +1,5 @@
+build/
+.venv/
+upload.py
+*.gba
+*.mb
