@@ -38,12 +38,12 @@ The pinout for the male connector is as follows (when looking at the connector):
 
 The firmware uses the default SPI peripheral and pins for the configured board. For the Raspberry Pi Pico and Seeed XIAO RP2040, the pin mapping is as follows:
 
-| GBA Cable | Raspberry Pi Pico | Seeed XIAO RP2040 |
-|-----------|-------------------|-------------------|
-| GND       | GND               | GND               |
-| SC        | GPIO18            | GPIO2             |
-| SI        | GPIO19            | GPIO3             |
-| SO        | GPIO16            | GPIO4             |
+| GBA Cable | Raspberry Pi Pico | Raspberry Pi Pico 2 | Seeed XIAO RP2040 |
+|-----------|-------------------|---------------------|-------------------|
+| GND       | GND               | GND                 | GND               |
+| SC        | GPIO18            | GPIO18              | GPIO2             |
+| SI        | GPIO19            | GPIO19              | GPIO3             |
+| SO        | GPIO16            | GPIO16              | GPIO4             |
 
 
 Check the [Pico SDK boards files](https://github.com/raspberrypi/pico-sdk/tree/master/src/boards/include/boards) for the pin mappings for your board.
