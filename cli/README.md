@@ -1,4 +1,4 @@
-# GB Multiboot CLI
+# GBA Multiboot CLI
 
 CLI tool for uploading GBA multiboot ROMs via a Raspberry Pi Pico serial bridge.
 
