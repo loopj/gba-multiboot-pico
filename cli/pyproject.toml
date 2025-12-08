@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "multiboot"
 version = "0.9.0"
 description = "Upload GBA multiboot payloads via Raspberry Pi Pico"
+readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "James Smith", email = "james@loopj.com" }]
