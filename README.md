@@ -1,21 +1,27 @@
 # GBA Multiboot Loader for Raspberry Pi Pico
 
-Minimal USB Serial to SPI passthrough bridge for GBA multiboot, allowing you to upload GBA multiboot ROMs using a Raspberry Pi Pico or other RP2040-based board.
-
-Takes little-endian 32-bit commands over USB serial, converts to the SPI format expected by the GBA multiboot protocol, and returns little-endian 32-bit responses.
-
-Compatible with jojolebarjos' [gba-multiboot](https://github.com/jojolebarjos/gba-multiboot) upload script.
+Firmware and CLI for uploading GBA multiboot ROMs using a Raspberry Pi Pico or other RP2040-based board.
 
 ## Usage
 
 Flash your pico with the multiboot firmware, see the [latest release](https://github.com/loopj/gba-multiboot-pico/releases/latest) for prebuilt .uf2 files for common RP2040 boards.
 
-Download [`upload.py`](https://github.com/jojolebarjos/gba-multiboot/blob/master/serial/upload.py) from jojolebarjos' gba-multiboot repository.
-
-Run the upload script, specifying the path to your GBA multiboot ROM and the serial port of your pico device:
+Install the multiboot CLI:
 
 ```bash
-python upload.py path/to/your/game.mb /dev/ttyACM0 
+pipx install multiboot
+```
+
+Run the multiboot CLI, specifying the path to your GBA multiboot ROM:
+
+```bash
+multiboot path/to/your/game.mb
+```
+
+You can also specify the serial port and timeout if needed:
+
+```bash
+multiboot path/to/your/game.mb --port /dev/ttyUSB0 --timeout 20
 ```
 
 ## Wiring
@@ -47,3 +53,9 @@ The firmware uses the default SPI peripheral and pins for the configured board. 
 
 
 Check the [Pico SDK boards files](https://github.com/raspberrypi/pico-sdk/tree/master/src/boards/include/boards) for the pin mappings for your board.
+
+## License
+
+This project is licensed under the MIT License. See [cli/LICENSE](cli/LICENSE) and [firmware/LICENSE](firmware/LICENSE) for more details.
+
+Upload CLI is based on jojolebarjos' excellent [gba-multiboot](https://github.com/jojolebarjos/gba-multiboot) upload script.
