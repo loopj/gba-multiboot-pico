@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "multiboot"
-version = "0.9.1"
+version = "0.10.0"
 description = "Upload GBA multiboot payloads via Raspberry Pi Pico"
 readme = "README.md"
 requires-python = ">=3.10"
