@@ -1,6 +1,6 @@
 # GBA Multiboot Loader for Raspberry Pi Pico
 
-Firmware and CLI for uploading GBA multiboot ROMs using a Raspberry Pi Pico or other RP2040-based board.
+Firmware and CLI for uploading GBA multiboot ROMs and monitoring GBA serial output using a Raspberry Pi Pico or other RP2040-based board.
 
 ## Usage
 
@@ -15,13 +15,42 @@ pipx install multiboot
 Run the multiboot CLI, specifying the path to your GBA multiboot ROM:
 
 ```bash
-multiboot path/to/your/game.mb
+multiboot upload path/to/your/game.mb
 ```
 
 You can also specify the serial port and timeout if needed:
 
 ```bash
-multiboot path/to/your/game.mb --port /dev/ttyUSB0 --timeout 20
+multiboot upload path/to/your/game.mb --port /dev/ttyUSB0 --timeout 20
+```
+
+## Serial monitor
+
+Add `--monitor` to monitor the GBA's serial output after the upload. Press Ctrl-C to exit.
+
+```bash
+multiboot upload path/to/your/game.mb --monitor
+```
+
+To watch a program that is already running, such as one started from a flash cart, use `monitor` on its own.
+
+```bash
+multiboot monitor
+```
+
+On the GBA, put the link port in [UART mode](https://problemkaputt.de/gbatek.htm#siouartmode) at 115200 baud with 8 data bits and no parity.
+
+The [gba](gba) directory has a small library that does this. Copy `uart.h` and `uart.c` into your project.
+
+```c
+#include "uart.h"
+
+int main(void)
+{
+  uart_init();
+  uart_printf("Hello from the GBA, frame %d\n", 0);
+  ...
+}
 ```
 
 ## Wiring
@@ -58,4 +87,4 @@ Check the [Pico SDK boards files](https://github.com/raspberrypi/pico-sdk/tree/m
 
 This project is licensed under the MIT License. See [cli/LICENSE](cli/LICENSE) and [firmware/LICENSE](firmware/LICENSE) for more details.
 
-Upload CLI is based on jojolebarjos' excellent [gba-multiboot](https://github.com/jojolebarjos/gba-multiboot) upload script.
+Upload CLI was originally based on jojolebarjos' excellent [gba-multiboot](https://github.com/jojolebarjos/gba-multiboot) upload script.

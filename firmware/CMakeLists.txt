@@ -8,7 +8,9 @@ pico_sdk_init()
 
 add_executable(app main.c)
 
-target_link_libraries(app pico_stdlib hardware_spi)
+pico_generate_pio_header(app ${CMAKE_CURRENT_LIST_DIR}/uart_rx.pio)
+
+target_link_libraries(app pico_stdlib hardware_pio hardware_spi)
 
 pico_enable_stdio_usb(app 1)
 pico_enable_stdio_uart(app 0)

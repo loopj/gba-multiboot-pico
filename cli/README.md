@@ -21,17 +21,29 @@ pip install multiboot
 Upload a ROM, auto-detecting the Pico device:
 
 ```bash
-multiboot rom.gba
+multiboot upload rom.gba
 ```
 
 Specify a serial port manually:
 
 ```bash
-multiboot rom.gba --port /dev/ttyUSB0
+multiboot upload rom.gba --port /dev/ttyUSB0
 ```
 
 Set a custom connection timeout:
 
 ```bash
-multiboot rom.gba --timeout 20
+multiboot upload rom.gba --timeout 20
+```
+
+Print the GBA's serial output after the upload:
+
+```bash
+multiboot upload rom.gba --monitor
+```
+
+Print the serial output of a program that is already running:
+
+```bash
+multiboot monitor
 ```

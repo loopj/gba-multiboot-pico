@@ -60,8 +60,8 @@ def xfer16(port, output):
     return input >> 16
 
 
-def upload(port_name, rom_path, timeout=10.0):
-    """Upload a GBA multiboot ROM via the given serial port."""
+def upload(port_name, rom_path, timeout=10.0, monitor=False):
+    """Upload a GBA multiboot ROM via the given serial port, then optionally print its serial output."""
     # Read ROM file
     with open(rom_path, "rb") as file:
         rom = file.read()
@@ -221,6 +221,27 @@ def upload(port_name, rom_path, timeout=10.0):
 
         console.print("[green]✓[/green] Upload complete!")
 
+        if monitor:
+            print_serial(port)
+
+
+def print_serial(port):
+    """Print the GBA's serial output from an open port until Ctrl-C, without sending anything."""
+    # The firmware forwards GBA UART output once the host stops sending, and any byte sent would switch it back
+    console.print("[cyan]Monitoring GBA serial output, press Ctrl-C to exit")
+    try:
+        while True:
+            sys.stdout.buffer.write(port.read(max(1, port.in_waiting)))
+            sys.stdout.buffer.flush()
+    except KeyboardInterrupt:
+        pass
+
+
+def monitor(port_name):
+    """Print the GBA's serial output without uploading anything first."""
+    with serial.Serial(port_name) as port:
+        print_serial(port)
+
 
 def detect_pico_ports():
     """Detect all connected Raspberry Pi Pico devices."""
@@ -236,18 +257,40 @@ def main():
     parser = argparse.ArgumentParser(
         description="GBA multiboot ROM uploader", prog="multiboot"
     )
-    parser.add_argument("path", help="Path to the GBA multiboot ROM file to upload")
-    parser.add_argument(
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    # Options every command takes
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
         "-p",
         "--port",
         help="Serial device to use (auto-detected if omitted)",
     )
-    parser.add_argument(
+
+    upload_command = commands.add_parser(
+        "upload", parents=[common], help="Upload a multiboot ROM to the GBA"
+    )
+    upload_command.add_argument(
+        "path", help="Path to the GBA multiboot ROM file to upload"
+    )
+    upload_command.add_argument(
         "-t",
         "--timeout",
         type=int,
         default=10,
         help="Connection timeout in seconds (default: 10)",
+    )
+    upload_command.add_argument(
+        "-m",
+        "--monitor",
+        action="store_true",
+        help="Print GBA serial output after the upload",
+    )
+
+    commands.add_parser(
+        "monitor",
+        parents=[common],
+        help="Print GBA serial output without uploading anything",
     )
     args = parser.parse_args()
 
@@ -282,8 +325,10 @@ def main():
             f"[green]✓[/green] Auto-detected device at [cyan]{port_name}[/cyan]"
         )
 
-    # Perform upload
-    upload(port_name, args.path, args.timeout)
+    if args.command == "upload":
+        upload(port_name, args.path, args.timeout, args.monitor)
+    else:
+        monitor(port_name)
 
 
 if __name__ == "__main__":
