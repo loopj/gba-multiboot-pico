@@ -9,6 +9,7 @@ pico_sdk_init()
 add_executable(app main.c)
 
 pico_generate_pio_header(app ${CMAKE_CURRENT_LIST_DIR}/uart_rx.pio)
+pico_generate_pio_header(app ${CMAKE_CURRENT_LIST_DIR}/uart_tx.pio)
 
 target_link_libraries(app pico_stdlib hardware_pio hardware_spi)
 

@@ -2,7 +2,7 @@
 
 CLI tool for uploading GBA multiboot ROMs via a Raspberry Pi Pico serial bridge.
 
-See the [main repository](https://github.com/loopj/gba-multiboot-pico) for firmware installation and wiring instructions.
+See the [main repository](https://github.com/loopj/gba-multiboot-pico) for firmware installation and wiring instructions. The CLI checks the firmware's protocol version, so flash the matching firmware when you upgrade it.
 
 ## Installation
 
