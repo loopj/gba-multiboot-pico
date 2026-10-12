@@ -5,7 +5,9 @@ See LICENSE for original license details.
 """
 
 import argparse
+import os
 import sys
+import threading
 import time
 
 import serial
@@ -28,8 +30,42 @@ PICO_PID = 0x000A
 # Version of the command protocol the firmware must speak
 PROTOCOL_VERSION = 2
 
+# GBA buttons by name, as bit numbers of the KEYINPUT register
+BUTTONS = {
+    "A": 0,
+    "B": 1,
+    "SELECT": 2,
+    "START": 3,
+    "RIGHT": 4,
+    "LEFT": 5,
+    "UP": 6,
+    "DOWN": 7,
+    "R": 8,
+    "L": 9,
+}
+
+# Keyboard keys and the buttons they press, matching mGBA's default bindings
+KEYBOARD = {
+    b"x": "A",
+    b"z": "B",
+    b"\x7f": "SELECT",
+    b"\x08": "SELECT",
+    b"\r": "START",
+    b"\n": "START",
+    b"\x1b[C": "RIGHT",
+    b"\x1b[D": "LEFT",
+    b"\x1b[A": "UP",
+    b"\x1b[B": "DOWN",
+    b"s": "R",
+    b"a": "L",
+}
+
+# Seconds a script leaves buttons released after a tap or hold, so the next press is seen as new
+RELEASE_GAP = 0.05
+
 # Command bytes the firmware takes from the host
 COMMAND_UART = b"U"
+COMMAND_SEND = b"S"
 COMMAND_NORMAL = b"N"
 COMMAND_EXCHANGE = b"X"
 COMMAND_VERSION = b"V"
@@ -278,6 +314,117 @@ def print_serial(port):
         pass
 
 
+def send_keys(port, held):
+    """Send the held buttons to the GBA, as a first byte with buttons 0 to 6 and a second with buttons 7 to 9."""
+    state = bytes((0x80 | (held & 0x7F), (held >> 7) & 0x07))
+    port.write(COMMAND_SEND + bytes((len(state),)) + state)
+    port.flush()
+
+
+def parse_buttons(text):
+    """Turn button names joined by plus signs, such as "A+B", into a held button mask."""
+    held = 0
+    for name in text.upper().split("+"):
+        if name not in BUTTONS:
+            console.print(
+                f"[red]Error:[/red] Unknown button {name}, use one of {', '.join(BUTTONS)}."
+            )
+            sys.exit(1)
+        held |= 1 << BUTTONS[name]
+
+    return held
+
+
+def press(port, held, seconds):
+    """Hold buttons for a time, then release them for long enough that the next press is seen as new."""
+    send_keys(port, held)
+    time.sleep(seconds)
+    send_keys(port, 0)
+    time.sleep(RELEASE_GAP)
+
+
+def run_script(port, script, hold):
+    """Press buttons as a script says, steps such as "tap A; wait 0.5; hold RIGHT 0.3" split by semicolons."""
+    for step in script.split(";"):
+        words = step.split()
+        if not words:
+            continue
+
+        # Each step taps buttons, holds them for a time, or waits
+        command = words[0].lower()
+        if command == "tap" and len(words) == 2:
+            press(port, parse_buttons(words[1]), hold)
+        elif command == "hold" and len(words) == 3:
+            press(port, parse_buttons(words[1]), float(words[2]))
+        elif command == "wait" and len(words) == 2:
+            time.sleep(float(words[1]))
+        else:
+            console.print(
+                f"[red]Error:[/red] Unknown step {step.strip()!r}, use tap, hold or wait."
+            )
+            sys.exit(1)
+
+
+def run_keyboard(port, hold):
+    """Press a button for each key read from the keyboard until Ctrl-C."""
+    import termios
+    import tty
+
+    # Read keys one at a time without echo
+    fd = sys.stdin.fileno()
+    saved = termios.tcgetattr(fd)
+    tty.setraw(fd)
+    try:
+        while True:
+            data = os.read(fd, 32)
+            if b"\x03" in data:
+                break
+
+            # Each key, or arrow key sequence in either form terminals send, presses its button
+            while data:
+                if data[:2] in (b"\x1b[", b"\x1bO"):
+                    key, data = b"\x1b[" + data[2:3], data[3:]
+                else:
+                    key, data = data[:1].lower(), data[1:]
+                button = KEYBOARD.get(key)
+                if button:
+                    press(port, 1 << BUTTONS[button], hold)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+
+
+def keys(port_name, script=None, hold=0.15):
+    """Press GBA buttons from the keyboard or a script, printing the GBA's serial output meanwhile."""
+    with serial.Serial(port_name, timeout=0.1) as port:
+        enter_uart_mode(port)
+
+        # Print the GBA's output from another thread while buttons are pressed
+        stop = threading.Event()
+
+        def print_output():
+            while not stop.is_set():
+                data = port.read(max(1, port.in_waiting))
+                sys.stdout.buffer.write(data)
+                sys.stdout.buffer.flush()
+
+        output = threading.Thread(target=print_output, daemon=True)
+        output.start()
+
+        # Run the script, or take keys until Ctrl-C
+        if script:
+            run_script(port, script, hold)
+        else:
+            console.print(
+                "[cyan]Arrows, X (A), Z (B), A (L), S (R), Enter (Start), Backspace (Select), Ctrl-C to exit"
+            )
+            run_keyboard(port, hold)
+
+        # Give the last output a moment to arrive
+        time.sleep(0.2)
+        stop.set()
+        output.join()
+
+
 def monitor(port_name):
     """Print the GBA's serial output without uploading anything first."""
     with serial.Serial(port_name) as port:
@@ -334,6 +481,23 @@ def main():
         parents=[common],
         help="Print GBA serial output without uploading anything",
     )
+
+    keys_command = commands.add_parser(
+        "keys",
+        parents=[common],
+        help="Press GBA buttons from the keyboard or a script, for programs using remote keys",
+    )
+    keys_command.add_argument(
+        "-s",
+        "--script",
+        help='Steps to run instead of reading the keyboard, such as "tap A; wait 0.5; hold RIGHT 0.3"',
+    )
+    keys_command.add_argument(
+        "--hold",
+        type=float,
+        default=0.15,
+        help="Seconds a key or tap holds its button (default: 0.15)",
+    )
     args = parser.parse_args()
 
     # Determine serial port
@@ -369,6 +533,8 @@ def main():
 
     if args.command == "upload":
         upload(port_name, args.path, args.timeout, args.monitor)
+    elif args.command == "keys":
+        keys(port_name, args.script, args.hold)
     else:
         monitor(port_name)
 

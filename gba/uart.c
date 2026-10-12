@@ -13,18 +13,31 @@
 #define UART_SIODATA8 (*(volatile uint16_t *)0x0400012A)
 
 // SIOCNT bits in UART mode, per GBATEK
-#define UART_115200    0x0003
-#define UART_SEND_FULL 0x0010
-#define UART_8BIT      0x0080
-#define UART_SEND_EN   0x0400
-#define UART_MODE      0x3000
+#define UART_115200     0x0003
+#define UART_SEND_FULL  0x0010
+#define UART_RECV_EMPTY 0x0020
+#define UART_8BIT       0x0080
+#define UART_FIFO       0x0100
+#define UART_SEND_EN    0x0400
+#define UART_RECV_EN    0x0800
+#define UART_MODE       0x3000
 
 void uart_init(void)
 {
-  // Select the serial modes, then UART mode with only the transmitter enabled
+  // Select the serial modes, then UART mode with the FIFOs off, which empties them
   UART_RCNT   = 0;
   UART_SIOCNT = 0;
-  UART_SIOCNT = UART_MODE | UART_8BIT | UART_SEND_EN | UART_115200;
+  UART_SIOCNT = UART_MODE | UART_8BIT | UART_115200;
+
+  // Then turn on the FIFOs, the transmitter and the receiver
+  UART_SIOCNT |= UART_FIFO | UART_SEND_EN | UART_RECV_EN;
+}
+
+int uart_getc(void)
+{
+  if (UART_SIOCNT & UART_RECV_EMPTY)
+    return -1;
+  return UART_SIODATA8 & 0xFF;
 }
 
 void uart_putc(char c)

@@ -55,6 +55,31 @@ int main(void)
 }
 ```
 
+## Remote keys
+
+`keys` presses GBA buttons from your computer while a program runs, and prints the program's serial output meanwhile. The keyboard follows mGBA's default bindings, with the arrow keys for the D-pad, X for A, Z for B, A for L, S for R, Enter for Start and Backspace for Select. Press Ctrl-C to exit.
+
+```bash
+multiboot keys
+```
+
+A terminal only reports key presses, so each press holds its button for 0.15 seconds, or as long as `--hold` gives. For tests, `--script` runs steps separated by semicolons instead. `tap` presses buttons for the hold time, `hold` presses them for a number of seconds, and `wait` pauses. Join buttons held together with a plus sign.
+
+```bash
+multiboot keys --script "tap A; wait 0.5; hold RIGHT+L 0.3; tap START"
+```
+
+On the GBA, copy `remote_keys.h` and `remote_keys.c` from the [gba](gba) directory alongside the UART files. Call `remote_keys_held()` once a frame after `uart_init()` and combine its buttons with the ones pressed on the GBA. It returns the held buttons in the KEYINPUT bit order, with a bit set for each held button, and it reads every byte the UART receives.
+
+```c
+#include "remote_keys.h"
+#include "uart.h"
+
+uint16_t pressed = (~REG_KEYINPUT & 0x3FF) | remote_keys_held();
+```
+
+The host sends each change as two bytes, the first with its top bit set and buttons 0 to 6, the second with buttons 7 to 9.
+
 ## Wiring
 
 You'll need a sacrificial link cable, I recommend using a Gameboy Color link cable since the aftermarket versions typically have all pins connected.

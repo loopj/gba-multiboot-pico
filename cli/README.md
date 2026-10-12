@@ -47,3 +47,15 @@ Print the serial output of a program that is already running:
 ```bash
 multiboot monitor
 ```
+
+Press GBA buttons from the keyboard, for a program using the remote keys library:
+
+```bash
+multiboot keys
+```
+
+Or press them from a script:
+
+```bash
+multiboot keys --script "tap A; wait 0.5; hold RIGHT+L 0.3"
+```
