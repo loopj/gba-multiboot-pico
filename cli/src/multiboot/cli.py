@@ -25,6 +25,15 @@ console = Console()
 PICO_VID = 0x2E8A
 PICO_PID = 0x000A
 
+# Version of the command protocol the firmware must speak
+PROTOCOL_VERSION = 2
+
+# Command bytes the firmware takes from the host
+COMMAND_UART = b"U"
+COMMAND_NORMAL = b"N"
+COMMAND_EXCHANGE = b"X"
+COMMAND_VERSION = b"V"
+
 
 def xfer32(port, output):
     """Exchange 32 bit payloads with the GBA attached to the given serial port."""
@@ -37,7 +46,7 @@ def xfer32(port, output):
             (output >> 24) & 0xFF,
         )
     )
-    port.write(output_bytes)
+    port.write(COMMAND_EXCHANGE + output_bytes)
     port.flush()
 
     # Get back the reply
@@ -60,6 +69,35 @@ def xfer16(port, output):
     return input >> 16
 
 
+def enter_normal_mode(port):
+    """Switch the firmware to normal mode, which multiboot uses, and check it speaks this CLI's protocol."""
+    # Switch modes, then drop any GBA output that arrived before the switch
+    port.write(COMMAND_NORMAL)
+    port.flush()
+    time.sleep(0.05)
+    port.reset_input_buffer()
+
+    # Ask for the protocol version, which older firmware never answers
+    port.write(COMMAND_VERSION)
+    port.flush()
+    previous_timeout = port.timeout
+    port.timeout = 0.5
+    reply = port.read(1)
+    port.timeout = previous_timeout
+    if not reply or reply[0] != PROTOCOL_VERSION:
+        found = f"version {reply[0]}" if reply else "no reply"
+        console.print(
+            f"[red]Error:[/red] Firmware protocol mismatch ({found}, need version {PROTOCOL_VERSION}). Flash the matching firmware."
+        )
+        sys.exit(1)
+
+
+def enter_uart_mode(port):
+    """Switch the firmware to UART mode, forwarding the GBA's serial output."""
+    port.write(COMMAND_UART)
+    port.flush()
+
+
 def upload(port_name, rom_path, timeout=10.0, monitor=False):
     """Upload a GBA multiboot ROM via the given serial port, then optionally print its serial output."""
     # Read ROM file
@@ -74,8 +112,10 @@ def upload(port_name, rom_path, timeout=10.0, monitor=False):
     while len(rom) % 16 != 0:
         rom = rom + b"\0"
 
-    # Open serial connection
+    # Open serial connection and switch the firmware to normal mode
     with serial.Serial(port_name) as port:
+        enter_normal_mode(port)
+
         # Send connection request, wait for slave to enter Normal mode
         with console.status("[cyan]Attempting to connect to GBA..."):
             start_time = time.time()
@@ -221,13 +261,14 @@ def upload(port_name, rom_path, timeout=10.0, monitor=False):
 
         console.print("[green]✓[/green] Upload complete!")
 
+        # Go back to UART mode, so the program's serial output is forwarded
+        enter_uart_mode(port)
         if monitor:
             print_serial(port)
 
 
 def print_serial(port):
-    """Print the GBA's serial output from an open port until Ctrl-C, without sending anything."""
-    # The firmware forwards GBA UART output once the host stops sending, and any byte sent would switch it back
+    """Print the GBA's serial output from an open port until Ctrl-C."""
     console.print("[cyan]Monitoring GBA serial output, press Ctrl-C to exit")
     try:
         while True:
@@ -240,6 +281,7 @@ def print_serial(port):
 def monitor(port_name):
     """Print the GBA's serial output without uploading anything first."""
     with serial.Serial(port_name) as port:
+        enter_uart_mode(port)
         print_serial(port)
 
 

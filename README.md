@@ -12,6 +12,8 @@ Install the multiboot CLI:
 pipx install multiboot
 ```
 
+The CLI checks that the firmware speaks the same protocol version, so flash the matching firmware whenever you upgrade the CLI.
+
 Run the multiboot CLI, specifying the path to your GBA multiboot ROM:
 
 ```bash
